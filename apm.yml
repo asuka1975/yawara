@@ -1,0 +1,15 @@
+name: yawara
+version: "0.1.0"
+description: >-
+  Claude Code hooks that rewrite Claude's replies and AskUserQuestion prompts
+  into plain, easy-to-read text with Antigravity CLI (Gemini 3.8 Flash high),
+  logging every before/after pair under ~/.yawara/logs.
+author: asuka1975
+license: GPL-3.0-or-later
+homepage: https://github.com/asuka1975/yawara
+repository: https://github.com/asuka1975/yawara
+keywords: [claude-code, hooks, antigravity, gemini, readability]
+
+# MessageDisplay is a Claude Code-only event, so ship the hooks to Claude only.
+targets:
+  - claude

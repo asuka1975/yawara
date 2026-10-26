@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "MessageDisplay": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"./scripts/yawara.py\"",
+            "timeout": 180,
+            "statusMessage": "yawara: メッセージを読みやすく書き換えています…"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"./scripts/yawara.py\"",
+            "timeout": 180,
+            "statusMessage": "yawara: 質問を読みやすく書き換えています…"
+          }
+        ]
+      }
+    ]
+  }
+}
