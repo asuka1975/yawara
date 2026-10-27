@@ -1,5 +1,5 @@
 name: yawara
-version: "0.1.0"
+version: "0.1.1"
 description: >-
   Claude Code hooks that rewrite Claude's replies and AskUserQuestion prompts
   into plain, easy-to-read text with Antigravity CLI (Gemini 3.8 Flash high),

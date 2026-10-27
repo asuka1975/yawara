@@ -7,7 +7,7 @@
             "type": "command",
             "command": "python3 \"./scripts/yawara.py\"",
             "timeout": 180,
-            "statusMessage": "yawara: メッセージを読みやすく書き換えています…"
+            "statusMessage": "yawara: rewriting the message for readability…"
           }
         ]
       }
@@ -20,7 +20,7 @@
             "type": "command",
             "command": "python3 \"./scripts/yawara.py\"",
             "timeout": 180,
-            "statusMessage": "yawara: 質問を読みやすく書き換えています…"
+            "statusMessage": "yawara: rewriting the question for readability…"
           }
         ]
       }

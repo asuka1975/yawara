@@ -1,67 +1,71 @@
 # yawara
 
-Claude Code の返答と `AskUserQuestion` の質問文・選択肢を、Antigravity CLI (`agy`) + Gemini 3.8 Flash (high) で「人間にとってわかりやすい文章」に書き換えて表示する Hooks です。[APM (Agent Package Manager)](https://github.com/microsoft/apm) のパッケージ形式で配布します。
+English | [日本語](README-ja.md)
 
-書き換え前と後の文章は、すべて `~/.yawara/logs/` に記録されます。
+Claude Code hooks that rewrite Claude's replies and the questions and options of `AskUserQuestion` into plain, easy-to-read text before they are shown, using Antigravity CLI (`agy`) with Gemini 3.8 Flash (high). Distributed as an [APM (Agent Package Manager)](https://github.com/microsoft/apm) package.
 
-## 必要なもの
+Every original and rewritten text is logged under `~/.yawara/logs/`.
 
-- Claude Code (`MessageDisplay` フックに対応した版。v2.1.310 で動作確認済み)
-- APM CLI (`apm`。v0.29.0 で動作確認済み)
-- Antigravity CLI (`agy`。v1.4.7 で動作確認済み) と、ログイン済みの状態
-  - フックは `agy -p` (ヘッドレスモード) で呼び出します。事前に一度 `agy` を対話モードで起動してログインしておいてください。
-- `python3` (3.9 以上。標準ライブラリのみ使用)
+## Requirements
 
-## インストール
+- Claude Code with support for the `MessageDisplay` hook (tested with v2.1.310)
+- APM CLI (`apm`, tested with v0.29.0)
+- Antigravity CLI (`agy`, tested with v1.4.7), already signed in
+  - The hooks call `agy -p` (headless mode). Start `agy` interactively once beforehand and sign in.
+- `python3` 3.9 or later (standard library only)
 
-すべての Claude Code セッションで使う場合 (ユーザー全体、`~/.claude/settings.json` に登録):
+## Installation
+
+For every Claude Code session (user scope, registered in `~/.claude/settings.json`):
 
 ```bash
-apm install -g asuka1975/yawara#v0.1.0
+apm install -g asuka1975/yawara#v0.1.1
 ```
 
-特定のプロジェクトだけで使う場合 (そのプロジェクトの `.claude/settings.json` に登録):
+For a single project only (registered in that project's `.claude/settings.json`):
 
 ```bash
 cd your-project
-apm install asuka1975/yawara#v0.1.0
+apm install asuka1975/yawara#v0.1.1
 ```
 
-インストール後に起動した Claude Code セッションから有効になります。外すときは `apm uninstall asuka1975/yawara` (グローバルなら `-g` 付き) を実行します。`apm uninstall yawara` のように名前だけでは指定できません。
+The hooks take effect in Claude Code sessions started after installation. To remove them, run `apm uninstall asuka1975/yawara` (add `-g` for a global install). The bare name, as in `apm uninstall yawara`, is not accepted.
 
-## 何をするか
+## What it does
 
-| 対象 | 使うフック | 動き |
+| Target | Hook | Behavior |
 | --- | --- | --- |
-| Claude の返答メッセージ | `MessageDisplay` | ストリーミング中の行はいったん表示せずに貯めておき、メッセージが最後まで届いた時点で全文をまとめて書き換えて表示します。 |
-| `AskUserQuestion` の質問 | `PreToolUse` (matcher: `AskUserQuestion`) | 質問文 (`question`)、選択肢の名前 (`label`)、選択肢の説明 (`description`) を 1 回の呼び出しでまとめて書き換え、`updatedInput` で差し替えます。`header` とプレビューはそのままです。 |
+| Claude's reply messages | `MessageDisplay` | Holds back the lines while the message streams in, then rewrites the whole message once it is complete and displays the result. |
+| `AskUserQuestion` questions | `PreToolUse` (matcher: `AskUserQuestion`) | Rewrites the question text (`question`), option names (`label`), and option descriptions (`description`) in a single call and swaps them in through `updatedInput`. `header` and previews are left unchanged. |
 
-書き換えのルール (プロンプトは `.apm/hooks/scripts/yawara.py` 内):
+Rewriting rules (the prompts live in `.apm/hooks/scripts/yawara.py`):
 
-- 元と同じ言語で書く。意味・事実・結論は変えず、情報を削ったり足したりしない。
-- 結論を先に置き、長い文は分ける。専門用語は残したうえで、かっこ書きで短い言い換えを添える。
-- コード、コマンド、ファイルパス、URL、数値、識別子、エラーメッセージは一字一句そのまま。
+- Write in the same language as the original. Keep the meaning, facts, and conclusions; do not drop or add information.
+- Put the conclusion first and split long sentences. Keep technical terms, adding a short plain-language gloss in parentheses where helpful.
+- Leave code, commands, file paths, URLs, numbers, identifiers, and error messages exactly as they are.
 
-### 知っておいてほしいこと
+The prompts themselves are written in Japanese, but the rewritten text stays in the language of the original message.
 
-- **表示が遅くなります。** 書き換え 1 回にかかる時間は、実測で 10〜70 秒程度でした。その間、メッセージは表示されません (スピナーに「yawara: メッセージを読みやすく書き換えています…」と出ます)。ターンが「done」になった後に、書き換え済みのメッセージが遅れて表示されることもあります。
-- **書き換わるのは画面表示だけです。** トランスクリプトや Claude 自身が見る文章は元のままです。`ctrl+o` の詳細表示でも元の文章が見えます。
-- **`AskUserQuestion` の回答は、書き換え後の文言で Claude に返ります。** そのため、元の文言との対応表を `additionalContext` で Claude に渡しています。
-- **失敗しても止まりません。** `agy` がエラー・タイムアウトになったときや、出力が壊れていたときは元の文章をそのまま表示し、ログに `"status": "fallback"` と理由を残します。100 KB を超える長いメッセージは書き換えません (`agy` にはプロンプトをコマンド引数で渡すため)。
-- **表示される文章は Google (Gemini) に送信されます。** コードやファイルパスなど、Claude の返答に含まれる内容がそのまま `agy` に渡ります。外部に出せない情報を扱うプロジェクトでは、プロジェクト単位のインストールにするか、`YAWARA_DISABLE=1` で止めてください。
+### Things to know
 
-## ログ
+- **Display is delayed.** In our measurements a single rewrite took about 10–70 seconds, and the message is not shown in the meantime (the spinner reads "yawara: rewriting the message for readability…"). The rewritten message may appear only after the turn is marked "done".
+- **Only the on-screen text changes.** The transcript and the text Claude itself sees keep the original wording. The verbose view (`ctrl+o`) also shows the original.
+- **`AskUserQuestion` answers reach Claude in the rewritten wording.** The hook therefore passes Claude a mapping back to the original wording through `additionalContext`.
+- **Failures never block Claude.** If `agy` errors out, times out, or returns malformed output, the original text is shown and the log records `"status": "fallback"` with the reason. Messages larger than 100 KB are not rewritten, because the prompt is passed to `agy` as a command-line argument.
+- **Displayed text is sent to Google (Gemini).** Everything in Claude's replies, including code and file paths, is passed to `agy` as is. For projects whose content must not leave your machine, install per project only, or turn the hooks off with `YAWARA_DISABLE=1`.
 
-`~/.yawara/` 以下は、フックの初回実行時に自動で作られます。
+## Logs
+
+`~/.yawara/` is created automatically the first time a hook runs.
 
 ```text
 ~/.yawara/
-├── logs/YYYY-MM-DD.jsonl   # 変換前後のログ (1 行 1 件、日付ごとのファイル)
-├── state/                  # ストリーミング中のメッセージを一時的に貯める場所 (表示後に削除)
-└── workspace/              # agy を実行する作業ディレクトリ (プロジェクトの文脈を読み込ませないため)
+├── logs/YYYY-MM-DD.jsonl   # Before/after log (one record per line, one file per day)
+├── state/                  # Temporary buffer for messages still streaming (deleted once shown)
+└── workspace/              # Working directory for agy (keeps project context out of the rewrite)
 ```
 
-ログ 1 件の形式:
+Shape of a log record:
 
 ```json
 {
@@ -74,33 +78,33 @@ apm install asuka1975/yawara#v0.1.0
   "session_id": "…",
   "cwd": "/path/to/project",
   "message_id": "…",
-  "before": "元の文章",
-  "after": "書き換え後の文章"
+  "before": "original text",
+  "after": "rewritten text"
 }
 ```
 
-- `kind`: `message` (返答) または `ask_user_question` (質問)。`ask_user_question` では `message_id` の代わりに `tool_use_id` が入り、`before` / `after` は `questions` 配列になります。
-- `status`: `rewritten` (書き換えた) または `fallback` (失敗したので元の文章を表示した。`after` は `null`)。
+- `kind`: `message` (a reply) or `ask_user_question` (a question). For `ask_user_question`, `tool_use_id` replaces `message_id`, and `before` / `after` hold the `questions` array.
+- `status`: `rewritten`, or `fallback` (rewriting failed and the original text was shown; `after` is `null`).
 
-例: 今日のログを読みやすく表示する
+Example: print today's log in a readable form
 
 ```bash
 jq -r '"[\(.timestamp)] \(.kind) \(.status)\n--- before\n\(.before)\n--- after\n\(.after)\n"' ~/.yawara/logs/$(date +%F).jsonl
 ```
 
-## 設定
+## Configuration
 
-環境変数で変更できます。Claude Code に渡すには、`~/.claude/settings.json` の `env` に書くか、Claude Code を起動するシェルで設定してください。
+Configure the hooks with environment variables. To pass them to Claude Code, put them under `env` in `~/.claude/settings.json`, or set them in the shell that launches Claude Code.
 
-| 環境変数 | 既定値 | 内容 |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `YAWARA_MODEL` | `gemini-3.8-flash-high` | `agy` に渡すモデル。使えるモデルは `agy models` で確認できます。 |
-| `YAWARA_TIMEOUT` | `150` | `agy` 1 回あたりの制限時間 (秒)。フック自体の `timeout` (180 秒) より短くしてください。長くすると、フックが先に打ち切られ、元の文章の一部しか表示されなくなります。 |
-| `YAWARA_HOME` | `~/.yawara` | ログ・一時ファイルの置き場所。 |
-| `YAWARA_AGY` | `agy` | `agy` コマンドのパス。デスクトップアプリから起動した Claude Code などで `PATH` に `agy` が無いと、ログがすべて `FileNotFoundError` の `fallback` になります。その場合は `which agy` の結果 (絶対パス) を設定してください。 |
-| `YAWARA_DISABLE` | (なし) | `1` にすると書き換えをせず、元の文章をそのまま表示します。 |
+| `YAWARA_MODEL` | `gemini-3.8-flash-high` | Model passed to `agy`. Run `agy models` to list the available models. |
+| `YAWARA_TIMEOUT` | `150` | Time limit for one `agy` call, in seconds. Keep it below the hook's own `timeout` (180 seconds); otherwise the hook is cut off first and only part of the original text is shown. |
+| `YAWARA_HOME` | `~/.yawara` | Where logs and temporary files are stored. |
+| `YAWARA_AGY` | `agy` | Path to the `agy` command. If `agy` is not on the `PATH` of Claude Code (for example when launched from the desktop app), every log record becomes a `fallback` with `FileNotFoundError`. In that case, set this to the absolute path printed by `which agy`. |
+| `YAWARA_DISABLE` | (unset) | Set to `1` to skip rewriting and show the original text. |
 
-例 (`~/.claude/settings.json`):
+Example (`~/.claude/settings.json`):
 
 ```json
 {
@@ -110,27 +114,27 @@ jq -r '"[\(.timestamp)] \(.kind) \(.status)\n--- before\n\(.before)\n--- after\n
 }
 ```
 
-## パッケージの構成
+## Package layout
 
 ```text
 yawara/
-├── apm.yml                      # APM マニフェスト (targets: claude)
+├── apm.yml                      # APM manifest (targets: claude)
 └── .apm/hooks/
-    ├── yawara.json              # フック定義 (MessageDisplay / PreToolUse)
-    └── scripts/yawara.py        # 書き換え・ログ記録の本体
+    ├── yawara.json              # Hook definitions (MessageDisplay / PreToolUse)
+    └── scripts/yawara.py        # Rewriting and logging
 ```
 
-`apm install` すると、フック定義は `.claude/settings.json` (グローバルなら `~/.claude/settings.json`) にマージされ、スクリプトは `.claude/hooks/yawara/scripts/yawara.py` に配置されます。
+`apm install` merges the hook definitions into `.claude/settings.json` (`~/.claude/settings.json` for a global install) and places the script at `.claude/hooks/yawara/scripts/yawara.py`.
 
-## 動作確認
+## Trying it out
 
-フックは標準入力で JSON を受け取るので、Claude Code を通さずに試せます。
+The hook reads JSON from standard input, so you can try it without Claude Code:
 
 ```bash
-echo '{"hook_event_name":"MessageDisplay","message_id":"test","index":0,"final":true,"delta":"PreToolUse フックで updatedInput を返すとツール入力を差し替えられます。\n"}' \
+echo '{"hook_event_name":"MessageDisplay","message_id":"test","index":0,"final":true,"delta":"Returning updatedInput from a PreToolUse hook replaces the tool input.\n"}' \
   | YAWARA_HOME=/tmp/yawara-test python3 .apm/hooks/scripts/yawara.py
 ```
 
-## ライセンス
+## License
 
 [GNU General Public License v3.0 or later](LICENSE) (`GPL-3.0-or-later`)
